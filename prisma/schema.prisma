@@ -1,0 +1,193 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis(version: "3.3.7"), uuid_ossp(map: "uuid-ossp", schema: "extensions"), vector]
+}
+
+model User {
+  id          String           @id @default(cuid())
+  email       String           @unique
+  password    String
+  name        String
+  role        Role             @default(USER)
+  teamId      String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  bookings    Booking[]
+  preferences UserPreferences?
+  team        Team?            @relation(fields: [teamId], references: [id])
+
+  @@index([email])
+  @@index([teamId])
+  @@map("users")
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  members     User[]
+
+  @@map("teams")
+}
+
+model UserPreferences {
+  id                String                 @id @default(cuid())
+  userId            String                 @unique
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  needsMonitor      Boolean                @default(false)
+  needsStandingDesk Boolean                @default(false)
+  prefersQuietArea  Boolean                @default(false)
+  needsWindow       Boolean                @default(false)
+  needsPowerOutlet  Boolean                @default(true)
+  embedding         Unsupported("vector")?
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_preferences")
+}
+
+model Office {
+  id        String   @id @default(cuid())
+  name      String
+  address   String
+  city      String
+  country   String
+  timezone  String   @default("UTC")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  floors    Floor[]
+
+  @@map("offices")
+}
+
+model Floor {
+  id          String   @id @default(cuid())
+  officeId    String
+  name        String
+  floorNumber Int
+  mapUrl      String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  desks       Desk[]
+  office      Office   @relation(fields: [officeId], references: [id], onDelete: Cascade)
+  zones       Zone[]
+
+  @@unique([officeId, floorNumber])
+  @@index([officeId])
+  @@map("floors")
+}
+
+model Zone {
+  id          String   @id @default(cuid())
+  floorId     String
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  desks       Desk[]
+  floor       Floor    @relation(fields: [floorId], references: [id], onDelete: Cascade)
+
+  @@index([floorId])
+  @@map("zones")
+}
+
+model Desk {
+  id         String                   @id @default(cuid())
+  floorId    String
+  zoneId     String?
+  deskNumber String
+  positionX  Float?
+  positionY  Float?
+  isActive   Boolean                  @default(true)
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
+  location   Unsupported("geometry")?
+  bookings   Booking[]
+  features   DeskFeatureMap[]
+  floor      Floor                    @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  zone       Zone?                    @relation(fields: [zoneId], references: [id])
+
+  @@unique([floorId, deskNumber])
+  @@index([floorId])
+  @@index([zoneId])
+  @@index([isActive])
+  @@index([location], type: Gist)
+  @@map("desks")
+}
+
+model DeskFeature {
+  id          String           @id @default(cuid())
+  name        String           @unique
+  description String?
+  icon        String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  desks       DeskFeatureMap[]
+
+  @@map("desk_features")
+}
+
+model DeskFeatureMap {
+  id            String      @id @default(cuid())
+  deskId        String
+  deskFeatureId String
+  createdAt     DateTime    @default(now())
+  deskFeature   DeskFeature @relation(fields: [deskFeatureId], references: [id], onDelete: Cascade)
+  desk          Desk        @relation(fields: [deskId], references: [id], onDelete: Cascade)
+
+  @@unique([deskId, deskFeatureId])
+  @@index([deskId])
+  @@index([deskFeatureId])
+  @@map("desk_feature_map")
+}
+
+model Booking {
+  id        String        @id @default(cuid())
+  userId    String        @map("userId")
+  deskId    String        @map("deskId")
+  startTime DateTime      @map("startTime")
+  endTime   DateTime      @map("endTime")
+  status    BookingStatus @default(CONFIRMED)
+  notes     String?
+  createdAt DateTime      @default(now()) @map("createdAt")
+  updatedAt DateTime      @updatedAt @map("updatedAt")
+  desk      Desk          @relation(fields: [deskId], references: [id], onDelete: Cascade)
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([deskId])
+  @@index([startTime, endTime])
+  @@index([status])
+  @@map("bookings")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model spatial_ref_sys {
+  srid      Int     @id
+  auth_name String? @db.VarChar(256)
+  auth_srid Int?
+  srtext    String? @db.VarChar(2048)
+  proj4text String? @db.VarChar(2048)
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum BookingStatus {
+  CONFIRMED
+  CANCELLED
+}

@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "desks" ADD COLUMN "positionX" DOUBLE PRECISION,
+ADD COLUMN "positionY" DOUBLE PRECISION;

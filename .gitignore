@@ -1,0 +1,58 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env
+.env*.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# prisma
+prisma/*.db
+prisma/*.db-journal
+
+# mock data (offline mode persistence)
+.mock-bookings.json
+.floor-plans.json
+.desk-positions.json
+.desks.json
+.admin-entities.json
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# personal dev notes (not part of the shipped repo)
+DEV_NOTES.md
+
+# local agent/tooling config (not part of the shipped app)
+.claude/
+.mcp.json
