@@ -2,7 +2,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { UserPlus } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { UserPlus, ChevronDown } from 'lucide-react';
+import Spinner from '@/components/ui/Spinner';
+import LogoMark from '@/components/ui/LogoMark';
 
 export default function Register() {
   const router = useRouter();
@@ -73,24 +76,37 @@ export default function Register() {
     });
   };
 
+  const passwordMismatch =
+    formData.confirmPassword.length > 0 && formData.password !== formData.confirmPassword;
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-radial from-primary-50 via-gray-50 to-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
+    <div className="relative min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <div className="absolute inset-0 bg-grid mask-fade-b" aria-hidden="true" />
+      <div className="relative max-w-md w-full">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-premium mb-4">
-            <UserPlus className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-center text-2xl font-bold text-gray-900 tracking-tight">
-            DeskBook
+          <Link
+            href="/"
+            className="mb-4 opacity-90 hover:opacity-100 transition-opacity"
+            aria-label="Back to home"
+          >
+            <LogoMark size={48} />
+          </Link>
+          <h1 className="text-center text-2xl font-bold uppercase tracking-tight text-gray-950">
+            DESKI<span className="text-accent-500">V</span>O
           </h1>
         </div>
-        <div className="card">
-          <h2 className="text-center text-xl font-bold text-gray-900">
+        <motion.div
+          className="card"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 24 }}
+        >
+          <h2 className="text-center text-xl font-bold text-gray-950 tracking-tight">
             Create your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Already have an account?{' '}
-            <Link href="/auth/login" className="font-medium text-primary-600 hover:text-primary-500">
+            <Link href="/auth/login" className="font-medium text-accent-700 hover:text-accent-600">
               Sign in
             </Link>
           </p>
@@ -158,26 +174,33 @@ export default function Register() {
                 onChange={handleChange}
                 className="input"
                 placeholder="••••••••"
+                aria-invalid={passwordMismatch}
               />
+              {passwordMismatch && (
+                <p className="mt-1 text-xs text-danger-600">Passwords do not match</p>
+              )}
             </div>
             <div>
               <label htmlFor="teamId" className="block text-sm font-medium text-gray-700 mb-1">
                 Team (Optional)
               </label>
-              <select
-                id="teamId"
-                name="teamId"
-                value={formData.teamId}
-                onChange={handleChange}
-                className="input"
-              >
-                <option value="">Select a team</option>
-                {teams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.name}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  id="teamId"
+                  name="teamId"
+                  value={formData.teamId}
+                  onChange={handleChange}
+                  className="input appearance-none pr-9"
+                >
+                  <option value="">Select a team</option>
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              </div>
             </div>
           </div>
 
@@ -189,19 +212,19 @@ export default function Register() {
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <Spinner size="sm" tone="onDark" />
                   Creating account...
                 </>
               ) : (
                 <>
-                  <UserPlus className="w-5 h-5" />
+                  <UserPlus className="w-4 h-4" />
                   Create account
                 </>
               )}
             </button>
           </div>
         </form>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

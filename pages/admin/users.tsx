@@ -3,7 +3,11 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
 import toast from 'react-hot-toast';
-import { Users, Shield, UserCheck, X } from 'lucide-react';
+import { Users, Shield, UserCheck } from 'lucide-react';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
+import SkeletonTable from '@/components/ui/SkeletonTable';
+import { getInitials } from '@/lib/initials';
 
 interface User {
   id: string;
@@ -32,7 +36,7 @@ export default function AdminUsers() {
       router.push('/auth/login');
     } else if (status === 'authenticated' && (session.user as any).role !== 'ADMIN') {
       toast.error('Access denied: Admin only');
-      router.push('/');
+      router.push('/desks');
     }
   }, [status, session, router]);
 
@@ -90,53 +94,120 @@ export default function AdminUsers() {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                <Users className="w-8 h-8" />
-                User Management
-              </h1>
-              <p className="mt-2 text-sm text-gray-600">
-                View and manage user accounts and permissions
-              </p>
-            </div>
-            <button
-              onClick={() => router.push('/admin')}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-            >
-              Back to Admin
-            </button>
-          </div>
-        </div>
+      <div className="space-y-6">
+        <PageHeader
+          title="User management"
+          description="View and manage user accounts and permissions"
+          backHref="/admin"
+          backLabel="Back to Admin"
+        />
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading users...</p>
-          </div>
+          <SkeletonTable rows={6} label="Loading users" />
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="card !p-0 overflow-hidden">
+            {/* Mobile: stacked cards */}
+            <div className="sm:hidden divide-y divide-gray-100">
+              {users.map((user) => (
+                <div key={user.id} className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-shrink-0 h-10 w-10 bg-gray-950 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-semibold">
+                        {getInitials(user.name)}
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-gray-900 truncate">{user.name}</div>
+                      <div className="text-sm text-gray-500 truncate">{user.email}</div>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center justify-between text-sm text-gray-500">
+                    <span>{user.team?.name || 'No team'}</span>
+                    <span>{user._count?.bookings || 0} bookings</span>
+                  </div>
+                  <div className="mt-3">
+                    {editingUserId === user.id ? (
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={selectedRole}
+                          onChange={(e) => setSelectedRole(e.target.value)}
+                          className="input !py-1.5 text-sm flex-1"
+                        >
+                          <option value="USER">User</option>
+                          <option value="ADMIN">Admin</option>
+                        </select>
+                        <button
+                          onClick={() => handleRoleChange(user.id, selectedRole)}
+                          className="btn btn-primary btn-sm"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingUserId(null);
+                            setSelectedRole('');
+                          }}
+                          className="btn btn-ghost btn-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between">
+                        <span
+                          className={
+                            user.role === 'ADMIN'
+                              ? 'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-950 text-white'
+                              : 'badge badge-neutral'
+                          }
+                        >
+                          {user.role === 'ADMIN' ? (
+                            <span className="flex items-center gap-1">
+                              <Shield className="w-3 h-3" /> Admin
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1">
+                              <UserCheck className="w-3 h-3" /> User
+                            </span>
+                          )}
+                        </span>
+                        <button
+                          onClick={() => {
+                            setEditingUserId(user.id);
+                            setSelectedRole(user.role);
+                          }}
+                          className="btn btn-secondary btn-sm"
+                        >
+                          Change Role
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: table */}
+            <div className="hidden sm:block overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide min-w-[180px]">
                     User
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide min-w-[200px]">
                     Email
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                     Team
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                     Role
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                     Bookings
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                     Actions
                   </th>
                 </tr>
@@ -144,43 +215,43 @@ export default function AdminUsers() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {users.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <span className="text-blue-600 font-medium">
-                            {user.name.charAt(0).toUpperCase()}
+                        <div className="flex-shrink-0 h-10 w-10 bg-gray-950 rounded-full flex items-center justify-center">
+                          <span className="text-white text-sm font-semibold">
+                            {getInitials(user.name)}
                           </span>
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                          <div className="text-sm font-semibold text-gray-900">{user.name}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{user.email}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div className="text-sm text-gray-500">
                         {user.team?.name || <span className="text-gray-400">No team</span>}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       {editingUserId === user.id ? (
                         <select
                           value={selectedRole}
                           onChange={(e) => setSelectedRole(e.target.value)}
-                          className="text-sm border-gray-300 rounded-md"
+                          className="input !w-auto !py-1.5 text-sm"
                         >
                           <option value="USER">User</option>
                           <option value="ADMIN">Admin</option>
                         </select>
                       ) : (
                         <span
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          className={
                             user.role === 'ADMIN'
-                              ? 'bg-purple-100 text-purple-800'
-                              : 'bg-green-100 text-green-800'
-                          }`}
+                              ? 'inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-950 text-white'
+                              : 'badge badge-neutral'
+                          }
                         >
                           {user.role === 'ADMIN' ? (
                             <span className="flex items-center gap-1">
@@ -194,15 +265,15 @@ export default function AdminUsers() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {user._count?.bookings || 0}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="badge badge-neutral tabular-nums">{user._count?.bookings || 0}</span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                       {editingUserId === user.id ? (
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleRoleChange(user.id, selectedRole)}
-                            className="text-green-600 hover:text-green-900"
+                            className="btn btn-primary btn-sm"
                           >
                             Save
                           </button>
@@ -211,7 +282,7 @@ export default function AdminUsers() {
                               setEditingUserId(null);
                               setSelectedRole('');
                             }}
-                            className="text-red-600 hover:text-red-900"
+                            className="btn btn-ghost btn-sm"
                           >
                             Cancel
                           </button>
@@ -222,7 +293,7 @@ export default function AdminUsers() {
                             setEditingUserId(user.id);
                             setSelectedRole(user.role);
                           }}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="btn btn-secondary btn-sm"
                         >
                           Change Role
                         </button>
@@ -232,13 +303,10 @@ export default function AdminUsers() {
                 ))}
               </tbody>
             </table>
+            </div>
 
             {users.length === 0 && (
-              <div className="text-center py-12">
-                <Users className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No users</h3>
-                <p className="mt-1 text-sm text-gray-500">No users found in the system.</p>
-              </div>
+              <EmptyState icon={Users} title="No users" description="No users found in the system." />
             )}
           </div>
         )}

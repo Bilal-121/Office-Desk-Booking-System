@@ -16,7 +16,7 @@
   }
 
   ::selection {
-    @apply bg-primary-200 text-primary-900;
+    @apply bg-accent-200 text-accent-950;
   }
 
   ::-webkit-scrollbar {
@@ -30,31 +30,62 @@
   ::-webkit-scrollbar-thumb {
     @apply rounded-full bg-gray-300 hover:bg-gray-400;
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98];
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold tracking-tight text-sm transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98];
+  }
+
+  /* Compact / large size modifiers — pair with .btn plus a color variant,
+     e.g. `btn btn-primary btn-sm`. Avoids one-off !important overrides. */
+  .btn-sm {
+    @apply px-3 py-1.5 text-xs gap-1.5;
+  }
+
+  .btn-lg {
+    @apply px-8 py-3.5 text-base;
   }
 
   .btn-primary {
-    @apply bg-primary-600 text-white shadow-soft hover:bg-primary-700 hover:shadow-card focus:ring-primary-500;
+    @apply bg-gray-950 text-white shadow-soft hover:bg-gray-800 hover:shadow-card focus-visible:ring-accent-500;
+  }
+
+  /* High-emphasis CTA: electric accent fill with dark text (hero / confirm actions). */
+  .btn-accent {
+    @apply bg-accent-500 text-gray-950 shadow-glow hover:bg-accent-400 hover:shadow-premium focus-visible:ring-accent-500;
   }
 
   .btn-secondary {
-    @apply bg-white text-gray-700 ring-1 ring-inset ring-gray-300 shadow-soft hover:bg-gray-50 hover:ring-gray-400 focus:ring-gray-500;
+    @apply bg-white text-gray-700 ring-1 ring-inset ring-gray-200 shadow-soft hover:bg-gray-50 hover:ring-gray-300 focus-visible:ring-gray-500;
   }
 
   .btn-danger {
-    @apply bg-danger-600 text-white shadow-soft hover:bg-danger-700 hover:shadow-card focus:ring-danger-500;
+    @apply bg-danger-600 text-white shadow-soft hover:bg-danger-700 hover:shadow-card focus-visible:ring-danger-500;
   }
 
   .btn-ghost {
-    @apply text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus:ring-gray-400;
+    @apply text-gray-600 hover:bg-gray-100 hover:text-gray-900 focus-visible:ring-gray-400;
+  }
+
+  /* Standalone variant (pairs with .btn, not with .btn-ghost) for every
+     destructive text/icon action — cancel booking, deactivate, etc. */
+  .btn-ghost-danger {
+    @apply text-danger-600 hover:bg-danger-50 hover:text-danger-700 focus-visible:ring-danger-500;
   }
 
   .input {
-    @apply w-full px-3.5 py-2.5 bg-white border border-gray-300 rounded-lg text-sm shadow-soft transition-colors placeholder:text-gray-400 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    @apply w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-sm shadow-soft transition-colors placeholder:text-gray-400 hover:border-gray-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:border-transparent aria-[invalid=true]:border-danger-400 aria-[invalid=true]:focus-visible:ring-danger-400;
   }
 
   .card {
@@ -78,7 +109,7 @@
   }
 
   .badge-primary {
-    @apply bg-primary-50 text-primary-700 ring-1 ring-inset ring-primary-600/20;
+    @apply bg-accent-50 text-accent-700 ring-1 ring-inset ring-accent-600/20;
   }
 
   .badge-neutral {
@@ -91,7 +122,26 @@
 }
 
 @layer utilities {
+  /* No default corner radius — callers always pass their own rounded-* class
+     so it never collides with one baked in here. */
   .skeleton {
-    @apply animate-pulse bg-gray-200 rounded;
+    @apply animate-pulse bg-gray-200;
+  }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgb(9 9 11 / 0.04) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(9 9 11 / 0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .bg-dots {
+    background-image: radial-gradient(rgb(9 9 11 / 0.08) 1px, transparent 1px);
+    background-size: 20px 20px;
+  }
+
+  .mask-fade-b {
+    -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent);
+    mask-image: linear-gradient(to bottom, black 55%, transparent);
   }
 }

@@ -1,9 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
 import toast from 'react-hot-toast';
-import { Building, Layers, Box, BarChart3, Users, Calendar } from 'lucide-react';
+import { Building, Layers, Box, BarChart3, Users, Calendar, Search, X, ChevronDown } from 'lucide-react';
+import PageHeader from '@/components/ui/PageHeader';
+import StatCard from '@/components/ui/StatCard';
+import Skeleton from '@/components/ui/Skeleton';
+import SkeletonTable from '@/components/ui/SkeletonTable';
+import CollapsibleSection from '@/components/ui/CollapsibleSection';
+import Popover from '@/components/ui/Popover';
+import EmptyState from '@/components/ui/EmptyState';
 
 interface Office {
   id: string;
@@ -75,12 +82,22 @@ export default function Admin() {
     deskNumber: '',
   });
 
+  // "Add Office" needs external control so the Offices stat card can expand
+  // it; the other two forms manage their own open state.
+  const [officeFormOpen, setOfficeFormOpen] = useState(false);
+  const officeFormRef = useRef<HTMLDivElement>(null);
+  const deskInventoryRef = useRef<HTMLDivElement>(null);
+
+  const [deskSearch, setDeskSearch] = useState('');
+  const [deskFloorFilter, setDeskFloorFilter] = useState('');
+  const [deskFilterOpen, setDeskFilterOpen] = useState(false);
+
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/auth/login');
     } else if (status === 'authenticated' && (session.user as any).role !== 'ADMIN') {
       toast.error('Access denied: Admin only');
-      router.push('/');
+      router.push('/desks');
     }
   }, [status, session, router]);
 
@@ -148,8 +165,42 @@ export default function Admin() {
   if (status === 'loading' || loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="space-y-6" role="status" aria-busy="true" aria-label="Loading admin dashboard">
+          <PageHeader title="Admin dashboard" description="Manage offices, floors, zones, and desks" />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="card !p-5">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="w-9 h-9 rounded-xl" />
+                  <Skeleton className="h-3 w-16 rounded" />
+                </div>
+                <Skeleton className="mt-3 h-8 w-20 rounded" />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-40 rounded-xl" />
+            ))}
+          </div>
+
+          <div>
+            <Skeleton className="h-5 w-36 rounded mb-4" />
+            <div className="card !p-0 divide-y divide-gray-100 overflow-hidden">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="px-4 py-3">
+                  <Skeleton className="h-4 w-24 rounded" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <Skeleton className="h-5 w-32 rounded mb-4" />
+            <SkeletonTable rows={4} label="Loading desk inventory" />
+          </div>
         </div>
       </Layout>
     );
@@ -297,215 +348,381 @@ export default function Admin() {
     }
   };
 
-  const statCards = [
+  const scrollToRef = (ref: React.RefObject<HTMLDivElement>) => {
+    setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  };
+
+  const handleOfficesStatClick = () => {
+    setOfficeFormOpen(true);
+    scrollToRef(officeFormRef);
+  };
+
+  const handleDesksStatClick = () => {
+    scrollToRef(deskInventoryRef);
+  };
+
+  const quickActions = [
     {
-      title: 'Offices',
-      value: stats.offices,
-      icon: Building,
-      color: 'bg-blue-500',
+      title: 'Manage Users',
+      description: 'Accounts, roles, and permissions',
+      icon: Users,
+      href: '/admin/users',
     },
     {
-      title: 'Floors',
-      value: stats.floors,
+      title: 'Manage Bookings',
+      description: 'All desk bookings across the org',
+      icon: Calendar,
+      href: '/admin/bookings',
+    },
+    {
+      title: 'Manage Floor Plans',
+      description: 'Upload maps and position desks',
       icon: Layers,
-      color: 'bg-green-500',
-    },
-    {
-      title: 'Desks',
-      value: stats.desks,
-      icon: Box,
-      color: 'bg-purple-500',
-    },
-    {
-      title: 'Active Bookings',
-      value: stats.activeBookings,
-      icon: BarChart3,
-      color: 'bg-orange-500',
+      href: '/admin/floor-plans',
     },
   ];
 
+  const filteredDesks = desks.filter((desk) => {
+    const matchesSearch =
+      deskSearch.trim() === '' || desk.deskNumber.toLowerCase().includes(deskSearch.trim().toLowerCase());
+    const matchesFloor = !deskFloorFilter || desk.floor.id === deskFloorFilter;
+    return matchesSearch && matchesFloor;
+  });
+
+  const deskFiltersActive = deskSearch.trim() !== '' || deskFloorFilter !== '';
+  const deskFloorSummary = deskFloorFilter
+    ? floors.find((f) => f.id === deskFloorFilter)?.name || 'Filtered'
+    : 'All floors';
+
   return (
     <Layout>
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="mt-2 text-gray-600">
-            Manage offices, floors, zones, and desks
-          </p>
+      <div className="space-y-6">
+        <PageHeader
+          title="Admin dashboard"
+          description="Manage offices, floors, zones, and desks"
+        />
+
+        {/* Stats Grid — each stat leads somewhere */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard
+            label="Offices"
+            value={stats.offices}
+            icon={Building}
+            tone="neutral"
+            animate
+            onClick={handleOfficesStatClick}
+          />
+          <StatCard
+            label="Floors"
+            value={stats.floors}
+            icon={Layers}
+            tone="neutral"
+            animate
+            onClick={() => router.push('/admin/floor-plans')}
+          />
+          <StatCard
+            label="Desks"
+            value={stats.desks}
+            icon={Box}
+            tone="neutral"
+            animate
+            onClick={handleDesksStatClick}
+          />
+          <StatCard
+            label="Active Bookings"
+            value={stats.activeBookings}
+            icon={BarChart3}
+            tone="accent"
+            animate
+            onClick={() => router.push('/admin/bookings')}
+          />
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {statCards.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <div key={stat.title} className="card">
-                <div className="flex items-center justify-between">
+        {/* Quick Actions — compact, since real content follows below */}
+        <div className="card !p-4">
+          <div className="flex flex-wrap gap-3">
+            {quickActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <button
+                  key={action.href}
+                  onClick={() => router.push(action.href)}
+                  className="btn btn-secondary"
+                  aria-label={`${action.title} — ${action.description}`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {action.title}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Management Actions — collapsed by default, one section per entity */}
+        <div className="card !p-0 divide-y divide-gray-100 overflow-hidden">
+          <div className="px-4 py-4">
+            <h2 className="text-xl font-bold text-gray-950 tracking-tight">Management Actions</h2>
+          </div>
+          <CollapsibleSection title="Add Office" open={officeFormOpen} onOpenChange={setOfficeFormOpen}>
+              <div ref={officeFormRef} className="px-4 pb-4 pt-1 space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+                    Office name
+                  </label>
+                  <input
+                    className="input"
+                    placeholder="Office name"
+                    value={officeForm.name}
+                    onChange={(e) => setOfficeForm((current) => ({ ...current, name: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+                    Address
+                  </label>
+                  <input
+                    className="input"
+                    placeholder="Address"
+                    value={officeForm.address}
+                    onChange={(e) => setOfficeForm((current) => ({ ...current, address: e.target.value }))}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <p className="text-sm font-medium text-gray-600">
-                      {stat.title}
-                    </p>
-                    <p className="text-3xl font-bold text-gray-900 mt-2">
-                      {stat.value}
-                    </p>
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+                      City
+                    </label>
+                    <input
+                      className="input"
+                      placeholder="City"
+                      value={officeForm.city}
+                      onChange={(e) => setOfficeForm((current) => ({ ...current, city: e.target.value }))}
+                    />
                   </div>
-                  <div className={`${stat.color} p-3 rounded-lg`}>
-                    <Icon className="w-8 h-8 text-white" />
+                  <div>
+                    <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+                      Country
+                    </label>
+                    <input
+                      className="input"
+                      placeholder="Country"
+                      value={officeForm.country}
+                      onChange={(e) => setOfficeForm((current) => ({ ...current, country: e.target.value }))}
+                    />
                   </div>
                 </div>
+                <button aria-label="Create office" className="btn btn-primary w-full" onClick={handleCreateOffice} disabled={creatingOffice}>
+                  {creatingOffice ? 'Creating...' : 'Create Office'}
+                </button>
               </div>
-            );
-          })}
-        </div>
+            </CollapsibleSection>
 
-        {/* Quick Actions */}
-        <div className="card">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <button
-              onClick={() => router.push('/admin/users')}
-              className="btn btn-primary flex items-center justify-center gap-2"
-            >
-              <Users className="w-5 h-5" />
-              Manage Users
-            </button>
-            <button
-              onClick={() => router.push('/admin/bookings')}
-              className="btn btn-primary flex items-center justify-center gap-2"
-            >
-              <Calendar className="w-5 h-5" />
-              Manage Bookings
-            </button>
-            <button
-              onClick={() => router.push('/admin/floor-plans')}
-              className="btn btn-primary flex items-center justify-center gap-2"
-            >
-              <Layers className="w-5 h-5" />
-              Manage Floor Plans
-            </button>
-          </div>
-        </div>
-
-        {/* Management Actions */}
-        <div className="card">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Management Actions</h2>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-              <h3 className="font-semibold text-gray-900">Add Office</h3>
-              <input
-                className="input"
-                placeholder="Office name"
-                aria-label="Office name"
-                value={officeForm.name}
-                onChange={(e) => setOfficeForm((current) => ({ ...current, name: e.target.value }))}
-              />
-              <input
-                className="input"
-                placeholder="Address"
-                aria-label="Office address"
-                value={officeForm.address}
-                onChange={(e) => setOfficeForm((current) => ({ ...current, address: e.target.value }))}
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  className="input"
-                  placeholder="City"
-                  aria-label="Office city"
-                  value={officeForm.city}
-                  onChange={(e) => setOfficeForm((current) => ({ ...current, city: e.target.value }))}
-                />
-                <input
-                  className="input"
-                  placeholder="Country"
-                  aria-label="Office country"
-                  value={officeForm.country}
-                  onChange={(e) => setOfficeForm((current) => ({ ...current, country: e.target.value }))}
-                />
+            <CollapsibleSection title="Add Floor">
+              <div className="px-4 pb-4 pt-1 space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+                    Office
+                  </label>
+                  <select
+                    className="input"
+                    value={floorForm.officeId}
+                    onChange={(e) => setFloorForm((current) => ({ ...current, officeId: e.target.value }))}
+                  >
+                    {offices.length === 0 && <option value="">No offices available</option>}
+                    {offices.map((office) => (
+                      <option key={office.id} value={office.id}>
+                        {office.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+                    Floor name
+                  </label>
+                  <input
+                    className="input"
+                    placeholder="Floor name"
+                    value={floorForm.name}
+                    onChange={(e) => setFloorForm((current) => ({ ...current, name: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+                    Floor number
+                  </label>
+                  <input
+                    type="number"
+                    className="input"
+                    placeholder="Floor number"
+                    value={floorForm.floorNumber}
+                    onChange={(e) => setFloorForm((current) => ({ ...current, floorNumber: Number(e.target.value) }))}
+                  />
+                </div>
+                <button aria-label="Create floor" className="btn btn-primary w-full" onClick={handleCreateFloor} disabled={creatingFloor}>
+                  {creatingFloor ? 'Creating...' : 'Create Floor'}
+                </button>
               </div>
-              <button aria-label="Create office" className="btn btn-primary w-full" onClick={handleCreateOffice} disabled={creatingOffice}>
-                {creatingOffice ? 'Creating...' : 'Create Office'}
-              </button>
-            </div>
+            </CollapsibleSection>
 
-            <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-              <h3 className="font-semibold text-gray-900">Add Floor</h3>
-              <select
-                className="input"
-                aria-label="Select office for floor"
-                value={floorForm.officeId}
-                onChange={(e) => setFloorForm((current) => ({ ...current, officeId: e.target.value }))}
-              >
-                {offices.length === 0 && <option value="">No offices available</option>}
-                {offices.map((office) => (
-                  <option key={office.id} value={office.id}>
-                    {office.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                className="input"
-                placeholder="Floor name"
-                aria-label="Floor name"
-                value={floorForm.name}
-                onChange={(e) => setFloorForm((current) => ({ ...current, name: e.target.value }))}
-              />
-              <input
-                type="number"
-                className="input"
-                placeholder="Floor number"
-                aria-label="Floor number"
-                value={floorForm.floorNumber}
-                onChange={(e) => setFloorForm((current) => ({ ...current, floorNumber: Number(e.target.value) }))}
-              />
-              <button aria-label="Create floor" className="btn btn-primary w-full" onClick={handleCreateFloor} disabled={creatingFloor}>
-                {creatingFloor ? 'Creating...' : 'Create Floor'}
-              </button>
-            </div>
-
-            <div className="border border-gray-200 rounded-lg p-4 space-y-3">
-              <h3 className="font-semibold text-gray-900">Add Desk</h3>
-              <select
-                className="input"
-                aria-label="Select floor for desk"
-                value={deskForm.floorId}
-                onChange={(e) => setDeskForm((current) => ({ ...current, floorId: e.target.value }))}
-              >
-                {floors.length === 0 && <option value="">No floors available</option>}
-                {floors.map((floor) => (
-                  <option key={floor.id} value={floor.id}>
-                    {floor.office.name} • {floor.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                className="input"
-                placeholder="Desk number (e.g. 1-ENG-011)"
-                aria-label="Desk number"
-                value={deskForm.deskNumber}
-                onChange={(e) => setDeskForm((current) => ({ ...current, deskNumber: e.target.value }))}
-              />
-              <button aria-label="Create desk" className="btn btn-primary w-full" onClick={handleCreateDesk} disabled={creatingDesk}>
-                {creatingDesk ? 'Creating...' : 'Create Desk'}
-              </button>
-            </div>
-          </div>
+            <CollapsibleSection title="Add Desk">
+              <div className="px-4 pb-4 pt-1 space-y-3">
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+                    Floor
+                  </label>
+                  <select
+                    className="input"
+                    value={deskForm.floorId}
+                    onChange={(e) => setDeskForm((current) => ({ ...current, floorId: e.target.value }))}
+                  >
+                    {floors.length === 0 && <option value="">No floors available</option>}
+                    {floors.map((floor) => (
+                      <option key={floor.id} value={floor.id}>
+                        {floor.office.name} • {floor.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+                    Desk number
+                  </label>
+                  <input
+                    className="input"
+                    placeholder="e.g. 1-ENG-011"
+                    value={deskForm.deskNumber}
+                    onChange={(e) => setDeskForm((current) => ({ ...current, deskNumber: e.target.value }))}
+                  />
+                </div>
+                <button aria-label="Create desk" className="btn btn-primary w-full" onClick={handleCreateDesk} disabled={creatingDesk}>
+                  {creatingDesk ? 'Creating...' : 'Create Desk'}
+                </button>
+              </div>
+            </CollapsibleSection>
         </div>
 
-        <div className="card">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Desk Inventory</h2>
+        <div ref={deskInventoryRef} className="card">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 className="text-xl font-bold text-gray-950 tracking-tight">Desk Inventory</h2>
+            {desks.length > 0 && (
+              <Popover
+                open={deskFilterOpen}
+                onClose={() => setDeskFilterOpen(false)}
+                align="right"
+                trigger={
+                  <button
+                    onClick={() => setDeskFilterOpen((v) => !v)}
+                    className="btn btn-secondary !justify-between w-full sm:w-auto"
+                  >
+                    <span className="inline-flex items-center gap-2 min-w-0">
+                      <Search className="w-4 h-4 text-gray-400 shrink-0" />
+                      <span className="truncate">
+                        {deskSearch ? `"${deskSearch}"` : 'Search desks'} · {deskFloorSummary}
+                      </span>
+                    </span>
+                    <ChevronDown
+                      className={`w-4 h-4 text-gray-400 transition-transform shrink-0 ${
+                        deskFilterOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                }
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-gray-950">Filter desks</h3>
+                  <button
+                    onClick={() => setDeskFilterOpen(false)}
+                    className="btn btn-ghost !p-1.5"
+                    aria-label="Close"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+                    Desk number
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="e.g. 1-ENG-011"
+                    value={deskSearch}
+                    onChange={(e) => setDeskSearch(e.target.value)}
+                  />
+                </div>
+                <div className="mt-3">
+                  <label className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
+                    Floor
+                  </label>
+                  <select
+                    className="input"
+                    value={deskFloorFilter}
+                    onChange={(e) => setDeskFloorFilter(e.target.value)}
+                  >
+                    <option value="">All floors</option>
+                    {floors.map((floor) => (
+                      <option key={floor.id} value={floor.id}>
+                        {floor.office.name} • {floor.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mt-4 flex justify-end gap-2">
+                  {deskFiltersActive && (
+                    <button
+                      onClick={() => {
+                        setDeskSearch('');
+                        setDeskFloorFilter('');
+                      }}
+                      className="btn btn-ghost !px-4 text-sm"
+                    >
+                      Clear
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setDeskFilterOpen(false)}
+                    className="btn btn-primary !px-4 text-sm"
+                  >
+                    Done
+                  </button>
+                </div>
+              </Popover>
+            )}
+          </div>
           {desks.length === 0 ? (
-            <p className="text-gray-600">No desks found.</p>
+            <EmptyState
+              icon={Box}
+              title="No desks yet"
+              description="Add desks under Management Actions to start building your inventory."
+            />
+          ) : filteredDesks.length === 0 ? (
+            <EmptyState
+              icon={Search}
+              title="No desks match your filters"
+              action={
+                <button
+                  onClick={() => {
+                    setDeskSearch('');
+                    setDeskFloorFilter('');
+                  }}
+                  className="btn btn-secondary"
+                >
+                  Clear filters
+                </button>
+              }
+            />
           ) : (
             <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
-              {desks.map((desk) => (
-                <div key={desk.id} className="border border-gray-200 rounded-lg p-3 flex items-center justify-between">
+              {filteredDesks.map((desk) => (
+                <div key={desk.id} className="rounded-xl bg-white ring-1 ring-gray-900/5 shadow-soft p-3 flex items-center justify-between">
                   <div>
-                    <p className="font-semibold text-gray-900">{desk.deskNumber}</p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm font-semibold text-gray-900">{desk.deskNumber}</p>
+                    <p className="text-sm text-gray-500">
                       {desk.floor.name} {desk.zone ? `• ${desk.zone.name}` : ''}
                     </p>
                   </div>
-                  <button aria-label={`Deactivate desk ${desk.deskNumber}`} className="btn btn-danger" onClick={() => handleDeactivateDesk(desk.id)}>
+                  <button aria-label={`Deactivate desk ${desk.deskNumber}`} className="btn btn-ghost-danger" onClick={() => handleDeactivateDesk(desk.id)}>
                     Deactivate
                   </button>
                 </div>

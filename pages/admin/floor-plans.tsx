@@ -4,7 +4,10 @@ import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
 import FloorPlanEditor from '@/components/FloorPlanEditor';
 import toast from 'react-hot-toast';
-import { ArrowLeft } from 'lucide-react';
+import { Map } from 'lucide-react';
+import PageHeader from '@/components/ui/PageHeader';
+import EmptyState from '@/components/ui/EmptyState';
+import Skeleton from '@/components/ui/Skeleton';
 
 interface Floor {
   id: string;
@@ -40,7 +43,7 @@ export default function FloorPlanManagement() {
       router.push('/auth/login');
     } else if (status === 'authenticated' && (session.user as any).role !== 'ADMIN') {
       toast.error('Access denied: Admin only');
-      router.push('/');
+      router.push('/desks');
     }
   }, [status, session, router]);
 
@@ -130,8 +133,25 @@ export default function FloorPlanManagement() {
   if (status === 'loading' || loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+        <div className="space-y-6" role="status" aria-busy="true" aria-label="Loading floor plans">
+          <PageHeader
+            title="Floor plan management"
+            description="Upload floor plan images and position desks for visual booking"
+            backHref="/admin"
+            backLabel="Back to Admin Dashboard"
+          />
+
+          {/* List-shaped and cheap to mimic */}
+          <div className="card">
+            <Skeleton className="h-3 w-24 rounded mb-2" />
+            <Skeleton className="h-10 w-full max-w-md rounded-xl" />
+          </div>
+
+          {/* The editor canvas is too variable to fake — a plain placeholder
+              block instead of trying to mimic its real shape */}
+          <div className="card">
+            <Skeleton className="h-72 rounded-xl" />
+          </div>
         </div>
       </Layout>
     );
@@ -146,24 +166,16 @@ export default function FloorPlanManagement() {
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <button
-            onClick={() => router.push('/admin')}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Admin Dashboard
-          </button>
-          <h1 className="text-3xl font-bold text-gray-900">Floor Plan Management</h1>
-          <p className="mt-2 text-gray-600">
-            Upload floor plan images and position desks for visual booking
-          </p>
-        </div>
+        <PageHeader
+          title="Floor plan management"
+          description="Upload floor plan images and position desks for visual booking"
+          backHref="/admin"
+          backLabel="Back to Admin Dashboard"
+        />
 
         {/* Floor Selection */}
         <div className="card">
-          <label htmlFor="floor-select" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="floor-select" className="block text-xs font-semibold uppercase tracking-wide text-gray-500 mb-1.5">
             Select Floor
           </label>
           <select
@@ -193,17 +205,16 @@ export default function FloorPlanManagement() {
         )}
 
         {!selectedFloor && floors.length === 0 && (
-          <div className="card text-center py-12">
-            <p className="text-gray-600">
-              No floors found. Create a floor in the admin dashboard first.
-            </p>
-            <button
-              onClick={() => router.push('/admin')}
-              className="btn btn-primary mt-4"
-            >
-              Go to Admin Dashboard
-            </button>
-          </div>
+          <EmptyState
+            icon={Map}
+            title="No floors found"
+            description="Create a floor in the admin dashboard first."
+            action={
+              <button onClick={() => router.push('/admin')} className="btn btn-primary">
+                Go to Admin Dashboard
+              </button>
+            }
+          />
         )}
       </div>
     </Layout>

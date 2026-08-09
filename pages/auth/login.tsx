@@ -2,7 +2,10 @@ import { useState } from 'react';
 import { signIn } from 'next-auth/react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { motion } from 'framer-motion';
 import { LogIn } from 'lucide-react';
+import Spinner from '@/components/ui/Spinner';
+import LogoMark from '@/components/ui/LogoMark';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -27,7 +30,7 @@ export default function Login() {
         // Full page navigation (not router.push) so the session cookie is
         // guaranteed to be present before the destination page's auth guard runs —
         // a client-side transition can race useSession() and bounce back to login.
-        window.location.href = '/';
+        window.location.href = '/desks';
       }
     } catch (error) {
       console.error('Login error:', error);
@@ -38,23 +41,33 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-radial from-primary-50 via-gray-50 to-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
+    <div className="relative min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
+      <div className="absolute inset-0 bg-grid mask-fade-b" aria-hidden="true" />
+      <div className="relative max-w-md w-full">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-premium mb-4">
-            <LogIn className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-center text-2xl font-bold text-gray-900 tracking-tight">
-            DeskBook
+          <Link
+            href="/"
+            className="mb-4 opacity-90 hover:opacity-100 transition-opacity"
+            aria-label="Back to home"
+          >
+            <LogoMark size={48} />
+          </Link>
+          <h1 className="text-center text-2xl font-bold uppercase tracking-tight text-gray-950">
+            DESKI<span className="text-accent-500">V</span>O
           </h1>
         </div>
-        <div className="card">
-          <h2 className="text-center text-xl font-bold text-gray-900">
+        <motion.div
+          className="card"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 24 }}
+        >
+          <h2 className="text-center text-xl font-bold text-gray-950 tracking-tight">
             Sign in to your account
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Or{' '}
-            <Link href="/auth/register" className="font-medium text-primary-600 hover:text-primary-500">
+            <Link href="/auth/register" className="font-medium text-accent-700 hover:text-accent-600">
               create a new account
             </Link>
           </p>
@@ -102,19 +115,19 @@ export default function Login() {
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <Spinner size="sm" tone="onDark" />
                   Signing in...
                 </>
               ) : (
                 <>
-                  <LogIn className="w-5 h-5" />
+                  <LogIn className="w-4 h-4" />
                   Sign in
                 </>
               )}
             </button>
           </div>
         </form>
-        </div>
+        </motion.div>
       </div>
     </div>
   );

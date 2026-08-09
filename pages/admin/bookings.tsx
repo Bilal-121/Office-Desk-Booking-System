@@ -3,8 +3,13 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/router';
 import Layout from '@/components/Layout';
 import toast from 'react-hot-toast';
-import { Calendar, Filter, X, CheckCircle, XCircle } from 'lucide-react';
+import { Calendar, X, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import PageHeader from '@/components/ui/PageHeader';
+import SegmentedControl from '@/components/ui/SegmentedControl';
+import EmptyState from '@/components/ui/EmptyState';
+import SkeletonTable from '@/components/ui/SkeletonTable';
+import { getInitials } from '@/lib/initials';
 
 interface Booking {
   id: string;
@@ -43,7 +48,7 @@ export default function AdminBookings() {
       router.push('/auth/login');
     } else if (status === 'authenticated' && (session.user as any).role !== 'ADMIN') {
       toast.error('Access denied: Admin only');
-      router.push('/');
+      router.push('/desks');
     }
   }, [status, session, router]);
 
@@ -114,94 +119,114 @@ export default function AdminBookings() {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
-                <Calendar className="w-8 h-8" />
-                Booking Management
-              </h1>
-              <p className="mt-2 text-sm text-gray-600">
-                View and manage all desk bookings across the organization
-              </p>
-            </div>
-            <button
-              onClick={() => router.push('/admin')}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-            >
-              Back to Admin
-            </button>
-          </div>
-        </div>
+      <div className="space-y-6">
+        <PageHeader
+          title="Booking management"
+          description="View and manage all desk bookings across the organization"
+          backHref="/admin"
+          backLabel="Back to Admin"
+        />
 
         {/* Filter */}
-        <div className="mb-6 bg-white rounded-lg shadow p-4">
-          <div className="flex items-center gap-4">
-            <Filter className="w-5 h-5 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Filter by status:</span>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setFilterStatus('ALL')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  filterStatus === 'ALL'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                All ({bookings.length})
-              </button>
-              <button
-                onClick={() => setFilterStatus('CONFIRMED')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  filterStatus === 'CONFIRMED'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Confirmed ({bookings.filter((b) => b.status === 'CONFIRMED').length})
-              </button>
-              <button
-                onClick={() => setFilterStatus('CANCELLED')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
-                  filterStatus === 'CANCELLED'
-                    ? 'bg-red-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Cancelled ({bookings.filter((b) => b.status === 'CANCELLED').length})
-              </button>
-            </div>
-          </div>
-        </div>
+        <SegmentedControl
+          options={[
+            { value: 'ALL', label: 'All', count: bookings.length },
+            {
+              value: 'CONFIRMED',
+              label: 'Confirmed',
+              count: bookings.filter((b) => b.status === 'CONFIRMED').length,
+            },
+            {
+              value: 'CANCELLED',
+              label: 'Cancelled',
+              count: bookings.filter((b) => b.status === 'CANCELLED').length,
+            },
+          ]}
+          value={filterStatus}
+          onChange={(v) => setFilterStatus(v as 'ALL' | 'CONFIRMED' | 'CANCELLED')}
+        />
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading bookings...</p>
-          </div>
+          <SkeletonTable rows={6} label="Loading bookings" />
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="overflow-x-auto">
+          <div className="card !p-0 overflow-hidden">
+            {/* Mobile: stacked cards */}
+            <div className="sm:hidden divide-y divide-gray-100">
+              {filteredBookings.map((booking) => (
+                <div key={booking.id} className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-shrink-0 h-10 w-10 bg-gray-950 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-semibold">
+                        {getInitials(booking.user.name)}
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-semibold text-gray-900 truncate">{booking.user.name}</div>
+                      <div className="text-sm text-gray-500 truncate">{booking.user.email}</div>
+                    </div>
+                    <span
+                      className={`badge shrink-0 ${
+                        booking.status === 'CONFIRMED' ? 'badge-success' : 'badge-danger'
+                      }`}
+                    >
+                      {booking.status === 'CONFIRMED' ? (
+                        <span className="flex items-center gap-1">
+                          <CheckCircle className="w-3 h-3" /> Confirmed
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          <XCircle className="w-3 h-3" /> Cancelled
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="mt-3 text-sm">
+                    <div className="font-semibold text-gray-900">{booking.desk.deskNumber}</div>
+                    <div className="text-gray-500">
+                      {booking.desk.floor.name}
+                      {booking.desk.zone && ` • ${booking.desk.zone.name}`}
+                    </div>
+                    <div className="text-gray-500 mt-1">
+                      {format(booking.startTime, 'MMM dd, yyyy')} · {format(booking.startTime, 'HH:mm')} -{' '}
+                      {format(booking.endTime, 'HH:mm')}
+                    </div>
+                  </div>
+                  {booking.notes && (
+                    <div className="mt-2 text-sm text-gray-500 italic">{booking.notes}</div>
+                  )}
+                  {booking.status === 'CONFIRMED' && (
+                    <button
+                      onClick={() => handleCancelBooking(booking.id)}
+                      className="btn btn-ghost-danger w-full mt-3"
+                    >
+                      <X className="w-4 h-4" /> Cancel booking
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Desktop: table */}
+            <div className="hidden sm:block overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide min-w-[180px]">
                       User
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide min-w-[140px]">
                       Desk
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                       Date & Time
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                       Notes
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
                       Actions
                     </th>
                   </tr>
@@ -209,27 +234,27 @@ export default function AdminBookings() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredBookings.map((booking) => (
                     <tr key={booking.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-blue-600 font-medium">
-                              {booking.user.name.charAt(0).toUpperCase()}
+                          <div className="flex-shrink-0 h-10 w-10 bg-gray-950 rounded-full flex items-center justify-center">
+                            <span className="text-white text-sm font-semibold">
+                              {getInitials(booking.user.name)}
                             </span>
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900">{booking.user.name}</div>
+                            <div className="text-sm font-semibold text-gray-900">{booking.user.name}</div>
                             <div className="text-sm text-gray-500">{booking.user.email}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{booking.desk.deskNumber}</div>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <div className="text-sm font-semibold text-gray-900">{booking.desk.deskNumber}</div>
                         <div className="text-sm text-gray-500">
                           {booking.desk.floor.name}
                           {booking.desk.zone && ` • ${booking.desk.zone.name}`}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
                           {format(booking.startTime, 'MMM dd, yyyy')}
                         </div>
@@ -237,12 +262,10 @@ export default function AdminBookings() {
                           {format(booking.startTime, 'HH:mm')} - {format(booking.endTime, 'HH:mm')}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <span
-                          className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            booking.status === 'CONFIRMED'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-red-100 text-red-800'
+                          className={`badge ${
+                            booking.status === 'CONFIRMED' ? 'badge-success' : 'badge-danger'
                           }`}
                         >
                           {booking.status === 'CONFIRMED' ? (
@@ -256,16 +279,16 @@ export default function AdminBookings() {
                           )}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-3">
                         <div className="text-sm text-gray-500 max-w-xs truncate">
                           {booking.notes || <span className="text-gray-400">-</span>}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium">
                         {booking.status === 'CONFIRMED' ? (
                           <button
                             onClick={() => handleCancelBooking(booking.id)}
-                            className="text-red-600 hover:text-red-900 flex items-center gap-1"
+                            className="btn btn-ghost-danger btn-sm"
                           >
                             <X className="w-4 h-4" /> Cancel
                           </button>
@@ -280,15 +303,15 @@ export default function AdminBookings() {
             </div>
 
             {filteredBookings.length === 0 && (
-              <div className="text-center py-12">
-                <Calendar className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No bookings</h3>
-                <p className="mt-1 text-sm text-gray-500">
-                  {filterStatus === 'ALL'
+              <EmptyState
+                icon={Calendar}
+                title="No bookings"
+                description={
+                  filterStatus === 'ALL'
                     ? 'No bookings found in the system.'
-                    : `No ${filterStatus.toLowerCase()} bookings found.`}
-                </p>
-              </div>
+                    : `No ${filterStatus.toLowerCase()} bookings found.`
+                }
+              />
             )}
           </div>
         )}

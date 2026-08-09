@@ -11,14 +11,20 @@ export default function BookingCard({ booking, onCancel }: BookingCardProps) {
   const isPast = new Date(booking.endTime) < new Date();
   const isCancelled = booking.status === 'CANCELLED';
 
+  const accentBar = isCancelled
+    ? 'border-l-4 border-l-danger-300'
+    : isPast
+    ? 'border-l-4 border-l-gray-200'
+    : 'border-l-4 border-l-accent-500';
+
   return (
-    <div className={`card ${isCancelled ? 'opacity-60' : ''}`}>
+    <div className={`card card-hover ${accentBar} ${isCancelled ? 'opacity-60' : ''}`}>
       <div className="flex justify-between items-start mb-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">
+          <h3 className="text-lg font-semibold text-gray-950 tracking-tight">
             {booking.desk.deskNumber}
           </h3>
-          <div className="flex items-center text-sm text-gray-600 mt-1">
+          <div className="flex items-center text-sm text-gray-500 mt-1">
             <MapPin className="w-4 h-4 mr-1" />
             {booking.desk.floor.name}
             {booking.desk.zone && ` • ${booking.desk.zone.name}`}
@@ -26,11 +32,7 @@ export default function BookingCard({ booking, onCancel }: BookingCardProps) {
         </div>
         <span
           className={`badge ${
-            isCancelled
-              ? 'badge-danger'
-              : isPast
-              ? 'bg-gray-100 text-gray-800'
-              : 'badge-success'
+            isCancelled ? 'badge-danger' : isPast ? 'badge-neutral' : 'badge-primary'
           }`}
         >
           {isCancelled ? 'Cancelled' : isPast ? 'Past' : 'Upcoming'}
@@ -56,10 +58,10 @@ export default function BookingCard({ booking, onCancel }: BookingCardProps) {
       {!isCancelled && !isPast && onCancel && (
         <button
           onClick={() => onCancel(booking.id)}
-          className="btn btn-danger w-full"
+          className="btn btn-ghost-danger w-full"
         >
           <X className="w-4 h-4" />
-          Cancel Booking
+          Cancel booking
         </button>
       )}
     </div>
